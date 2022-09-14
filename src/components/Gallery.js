@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from 'react-router-dom';
 import API from '../utils/api';
 import Masonry, { ResponsiveMasonry } from "react-responsive-masonry"
 import "./Gallery.scss";
 
 const Gallery = () => {
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
+  const [color, setColor] = useState(searchParams.get('color'));
+  const [orientation, setOrientation] = useState(searchParams.get('orientation'));
   const [results, setResults] = useState([]);
   const [fullScreenImg, setFullScreenImg] = useState({ result: '', i: 0 });
+  const [showFilters, setShowFilters] = useState(true);
+  const [filterButtonValue, SetFilterButtonValue] = useState('Filter');
 
   const debounce = (func, delay) => {
     let debounceTimer
@@ -19,7 +25,17 @@ const Gallery = () => {
   }
 
   useEffect(() => {
-    API.getPhotos(page)
+    if (color) {
+      document.getElementById('color').value = color;
+      SetFilterButtonValue('Reset Filters');
+    }
+
+    if (orientation) {
+      document.getElementById('orientation').value = orientation;
+      SetFilterButtonValue('Reset Filters');
+    }
+
+    API.getPhotos(page, color !== '' && color, orientation !== '' && orientation)
       .then((response) => response.json())
       .then((data) => {
         setResults(results.concat(data.results));
@@ -28,36 +44,38 @@ const Gallery = () => {
 
     window.onscroll = function (ev) {
       if ((Math.ceil(window.innerHeight + window.scrollY)) >= document.body.offsetHeight) {
-        debounce(setPage(page + 1), 3000);
+        debounce(setPage(page + 1), 1000);
       }
     };
-  }, [page]);
+  }, [page, color, orientation, filterButtonValue]);
 
   const viewImage = (result, i) => {
     setFullScreenImg({ result, i });
+    setShowFilters(false);
   }
 
   const handleFullScreenImgButtons = (action) => {
     let i = fullScreenImg.i;
-    if (action === 'next-img') {
-      setFullScreenImg({ result: results[i + 1], i: i + 1 })
-    }
-    if (action === 'prev-img') {
-      setFullScreenImg({ result: results[i - 1], i: i - 1 })
-    }
     if (action === 'close-img') {
-      setFullScreenImg({ result: '', i: 0 })
+      setFullScreenImg({ result: '', i: 0 });
+      setShowFilters(true);
+    }
+  }
+
+  const handleSubmit = () => {
+    if (filterButtonValue === 'Reset Filters') {
+      document.getElementById('color').value = 'default';
+      document.getElementById('orientation').value = 'default';
     }
   }
 
   return (
     <div
-      className='gallaryContainer'
+      className='galleryContainer'
     >
       {fullScreenImg.result &&
         <div className="fullScreenImgContainer">
           <button onClick={() => handleFullScreenImgButtons('close-img')} style={{ position: 'absolute', top: '10px', right: '10px' }}>X</button>
-          {/* <button onClick={() => handleFullScreenImgButtons('prev-img')}>Previous</button> */}
           <img
             className="fullScreenImg"
             key={fullScreenImg.i}
@@ -68,8 +86,40 @@ const Gallery = () => {
             <p>Username: {fullScreenImg.result.user.username}</p>
             <p>Like Count: {fullScreenImg.result.likes}</p>
           </div>
-          {/* <button onClick={() => handleFullScreenImgButtons('next-img')}>Next</button> */}
         </div>
+      }
+      {showFilters &&
+        <form className="filtersContainer">
+          <h2>Filters:</h2>
+
+          <label htmlFor="color">Choose a color:</label>
+
+          <select name="color" id="color">
+            <option defaultValue="default"></option>
+            <option value="black_and_white">black and white</option>
+            <option value="black">black</option>
+            <option value="white">white</option>
+            <option value="yellow">yellow</option>
+            <option value="orange">orange</option>
+            <option value="red">red</option>
+            <option value="purple">purple</option>
+            <option value="magenta">magenta</option>
+            <option value="green">green</option>
+            <option value="teal">teal</option>
+            <option value="blue">blue</option>
+          </select>
+
+          <label htmlFor="orientation">Choose an orientation:</label>
+
+          <select name="orientation" id="orientation">
+            <option defaultValue="default"></option>
+            <option value="landscape">landscape</option>
+            <option value="portrait">portrait</option>
+            <option value="squarish">squarish</option>
+          </select>
+
+          <input type="submit" id='filterButton' value={filterButtonValue} onClick={handleSubmit}></input>
+        </form>
       }
       <ResponsiveMasonry
         columnsCountBreakPoints={{ 350: 1, 750: 2, 900: 3 }}
